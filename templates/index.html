@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prolamování hesel</title>
+    <script>
+        // Funkce pro ověření hesla
+        async function checkPassword() {
+            const password = document.getElementById("password").value;
+            const complexity = document.getElementById("level").value;
+
+            const response = await fetch("/check-password", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ password, complexity })
+            });
+
+            const result = await response.json();
+            document.getElementById("result").innerText = result.result;
+        }
+
+        // Funkce pro brute-force útok (pouze pro testování)
+        async function bruteForce() {
+            const complexity = document.getElementById("level").value;
+            const charset = {
+                0: "0123456789",
+                1: "0123456789",
+                2: "abcdefghijklmnopqrstuvwxyz",
+                3: "abcdefghijklmnopqrstuvwxyz0123456789",
+                4: "abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()"
+            };
+
+            const maxLength = { 0: 4, 1: 5, 2: 4, 3: 4, 4: 4 };
+            const chars = charset[complexity];
+            let attempts = 0;
+
+            const startTime = Date.now();
+
+            for (let length = 1; length <= maxLength[complexity]; length++) {
+                const combinations = generateCombinations(chars, length);
+                for (const password of combinations) {
+                    attempts++;
+
+                    // Výpis aktuálního pokusu
+                    console.log(`Attempt #${attempts}: Trying password: ${password}`);
+
+                    const response = await fetch("/check-password", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({ password, complexity })
+                    });
+
+                    const result = await response.json();
+
+                    // Výpis odpovědi serveru
+                    console.log(`Server response: ${JSON.stringify(result)}`);
+
+                    if (result.result === "OK") {
+                        const endTime = Date.now();
+                        document.getElementById("result").innerText =
+                            `Heslo prolomeno: ${password}\nPočet pokusů: ${attempts}\nČas: ${(endTime - startTime) / 1000} sekund`;
+                        return;
+                    }
+                }
+            }
+        }
+
+
+        // Generování všech kombinací znaků dané délky
+        function generateCombinations(chars, length) {
+            if (length === 1) return chars.split("");
+            const smallerCombinations = generateCombinations(chars, length - 1);
+            return chars.split("").flatMap(char =>
+                smallerCombinations.map(smallerCombo => char + smallerCombo)
+            );
+        }
+    </script>
+</head>
+<body>
+    <h1>Prolamování hesel</h1>
+    <form onsubmit="event.preventDefault(); checkPassword();">
+        <label for="level">Složitost hesla:</label>
+        <select id="level">
+            <option value="0">0 - 4 čísla</option>
+            <option value="1">1 - 5 čísel</option>
+            <option value="2">2 - 4 písmena</option>
+            <option value="3">3 - 4 písmena a čísla</option>
+            <option value="4">4 - 4 písmena, čísla a speciální znaky</option>
+        </select>
+        <br>
+        <label for="password">Heslo:</label>
+        <input type="text" id="password" required>
+        <br>
+        <button type="submit">Odeslat</button>
+    </form>
+    <button onclick="bruteForce()">Prolomit heslo (JS)</button>
+    <div id="result"></div>
+</body>
+</html>
